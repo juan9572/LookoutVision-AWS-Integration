@@ -23,6 +23,9 @@ class AnalyzeImage:
       self.model_units = units
 
   def start_analyzis(self):
+    """
+    Starts process to analyze image, calling all methods.
+    """
     try:
       self._content_type()
       self._detect_anomaly()
@@ -33,12 +36,19 @@ class AnalyzeImage:
       print(e)
 
   def _content_type(self):
+    """
+    Determines the type of extension and set as attribute 'content_type'
+    """
     path_splitted = self.image_path.split('.')
     img_extension = path_splitted[len(path_splitted) - 1]
     self.content_type = "image/png" if img_extension == "png" else "image/jpeg"
     self.image_name = path_splitted[0]
 
   def _detect_anomaly(self):
+    """
+    Detects anomaly type of the image provided and save the response
+    as attribute 'analysis_response'.
+    """
     with open(self.image_path, "rb") as image:
       self.analysis_response = client.detect_anomalies(
         ProjectName = self.model_name,
@@ -48,6 +58,9 @@ class AnalyzeImage:
       )
 
   def _process_response(self):
+    """
+    Save response content in different attributes and then print them.
+    """
     anomaly_rslt = self.analysis_response['DetectAnomalyResult']
     self.anomalies = anomaly_rslt.get('Anomalies')
     self.is_anomalous = anomaly_rslt['IsAnomalous']
@@ -57,9 +70,18 @@ class AnalyzeImage:
     print('IsAnomalous: ', 'Yes' if anomaly_rslt.get('IsAnomalous') else 'No')
 
   def img_extension(self):
+    """
+    Split content type, ex: 'image/png'.
+
+    Returns:
+      str: image extension, ex: 'png'
+    """
     return self.content_type.split("/")[1]
 
   def _save_img_response(self):
+    """
+    Save anomaly mask as image with 'anomaly' subfix.
+    """
     if(self.anomalies and self.is_anomalous and self.anomaly_mask):
       # "img/png" -> ['img', 'png'] -> 'png'
       output_path = f'{self.output_folder}/{self.image_name}_anomaly.{self.img_extension()}'
@@ -71,17 +93,30 @@ class AnalyzeImage:
       raise Exception('‼️ Anomaly Not Found, we can save image response')
 
   def convert_img_to_transparent(self, data):
+    """
+    Change anomaly image white pixels into transparent.
+
+    Returns:
+      ndArray: Pixel map
+      [
+        (255, 255, 255, 0),
+        (255, 255, 255, 0),
+        ...,
+      ]
+    """
     new_data_image = []
     # Cambiar píxeles blancos (fondo) a píxeles transparentes en la máscara de anomalía
     for item in data:
       if item[0] == 255 and item[1] == 255 and item[2] == 255:
-        # Save with opacity full
         new_data_image.append((255, 255, 255, 0))
       else:
         new_data_image.append(item)
     return new_data_image
 
   def _mix_anomaly_original_imgs(self):
+    """
+    Overlay anomaly mask image into the original image and then save it with 'mixed' subfix.
+    """
     original_image = Image.open(self.image_path)
     anomaly_mask = Image.open(self.output_anomaly_img_path).convert("RGBA")
     data = anomaly_mask.getdata()
@@ -92,6 +127,12 @@ class AnalyzeImage:
     mix_imgs.save(output_path, self.img_extension())
 
   def start_model(self):
+    """
+    Start a Lookout for vision project with a params defined
+
+    Output:
+      print response or error
+    """
     try:
       init_project = client.start_model(
         ProjectName = self.model_name,
@@ -103,6 +144,12 @@ class AnalyzeImage:
       print(e)
 
   def stop_model(self):
+    """
+    Stop Lookout for Vision Project.
+
+    Output:
+        Print response or Error
+    """
     try:
       response = client.stop_model(
         ProjectName = self.model_name,
@@ -113,5 +160,6 @@ class AnalyzeImage:
       print(e)
 
 # Example
-# instance = AnalyzeImage('poc-rodetes-interno-conos', 'test_cono.png', '1', 1)
+instance = AnalyzeImage('poc-rodetes-interno-conos', 'cono.png', '1', 1)
 # instance.start_model()
+# instance.start_analyzis()
